@@ -38,9 +38,19 @@ class DrugCalendarView : View {
     private var mWidth = 0
     private var mHeight = 0
 
+    private val selectedSquares: ArrayList<DateSquare> = arrayListOf()
+
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
+    private val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
     init {
+
+        circlePaint.style = Paint.Style.STROKE
+        circlePaint.strokeWidth = 2f
+        circlePaint.color = Color.GREEN
+
+
         textPaint.strokeWidth = 3f
         textPaint.color = Color.BLACK
         textPaint.textSize = TypedValue.applyDimension(
@@ -91,6 +101,10 @@ class DrugCalendarView : View {
 
     override fun onDraw(canvas: Canvas) {
 
+        for(selected in selectedSquares){
+            canvas.drawCircle(selected.x, selected.y, 30f, textPaint)
+        }
+
         daysInWeekNames?.let {
             for (i in 0..7) {
                 canvas.drawText(
@@ -101,8 +115,8 @@ class DrugCalendarView : View {
         }
 
         datePositions?.let {
-            for ((index, date) in datePositions!!.withIndex()) {
-                canvas.drawText("${index + 1}", date.x, date.y, textPaint)
+            for (date in datePositions!!) {
+                canvas.drawText("${date.date}", date.x, date.y, textPaint)
             }
         }
     }
@@ -178,7 +192,7 @@ class DrugCalendarView : View {
         for (i in 0..7) {
             val x = (initOffset + i * squareSize).toFloat()
             val y = (initOffset).toFloat()
-            squareList.add(DateSquare(x, y))
+            squareList.add(DateSquare(x, y, 0))
         }
 
         return squareList
@@ -195,14 +209,18 @@ class DrugCalendarView : View {
 
             }
             MotionEvent.ACTION_UP -> {
-                Toast.makeText(context, "x=$x y=$y", Toast.LENGTH_SHORT).show()
-
+                selectedSquares.add(getSelectedDateSquare(x, y))
+                invalidate()
             }
             MotionEvent.ACTION_CANCEL -> {
 
             }
         }
         return true
+    }
+
+    private fun getSelectedDateSquare(x: Float, y: Float): DateSquare{
+        return DateSquare(x, y, 0)
     }
 
     private fun getPositionsForDates(): List<DateSquare> {
@@ -227,7 +245,7 @@ class DrugCalendarView : View {
             val x = (initOffset + (gapOfFirstDayOfMonth + i) % 7 * squareSize).toFloat()
             val y =
                 (initOffset + ((i + gapOfFirstDayOfMonth) / 7) * squareSize).toFloat() + squareSize
-            squareList.add(DateSquare(x, y))
+            squareList.add(DateSquare(x, y, i+1))
         }
 
         return squareList
