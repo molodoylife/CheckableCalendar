@@ -18,6 +18,7 @@ class DrugCalendarView : View {
 
     private val calendar = Calendar.getInstance()
     private val dateFormat = SimpleDateFormat("dd.MM.yy", Locale.getDefault())
+    private var numberOfDaysInCurrentMonth = 0
     private var dateFormatMonthTitle = ""
     private val screenWidth = getCurrentScreenWidth()
     private val squareSize = getSquareSideLength()
@@ -33,6 +34,8 @@ class DrugCalendarView : View {
 
     private var dateForUnselect: DateSquare? = null
 
+    private var datePressedNow: DateSquare? = null
+
     private var mWidth = 0
     private var mHeight = 0
 
@@ -42,12 +45,17 @@ class DrugCalendarView : View {
     private val textPaintMonthName = Paint(Paint.ANTI_ALIAS_FLAG)
     private var textVerticalOffsetToBeDrawnInCenter = 0f
 
-    private val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val emptyCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val filledCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     init {
-        circlePaint.style = Paint.Style.STROKE
-        circlePaint.strokeWidth = 2f
-        circlePaint.color = Color.GREEN
+        emptyCirclePaint.style = Paint.Style.STROKE
+        emptyCirclePaint.strokeWidth = 2f
+        emptyCirclePaint.color = Color.GREEN
+
+        filledCirclePaint.style = Paint.Style.FILL_AND_STROKE
+        filledCirclePaint.strokeWidth = 2f
+        filledCirclePaint.color = Color.GRAY
 
         textPaint.strokeWidth = 3f
         textPaint.color = Color.BLACK
@@ -90,10 +98,15 @@ class DrugCalendarView : View {
         }
     }
 
+    //TODO Refactor me
     override fun onDraw(canvas: Canvas) {
 
         textPaintMonthName.textAlign = Paint.Align.LEFT
         //TODO Optimize onDraw method
+
+        datePressedNow?.let {
+            canvas.drawCircle(it.x, it.y, initSquareSelectionRadius, filledCirclePaint)
+        }
 
         canvas.drawText(
             dateFormatMonthTitle,
@@ -107,7 +120,7 @@ class DrugCalendarView : View {
 
         //TODO Optimize getting x coords for this label
         canvas.drawText(
-            "14/28",
+            "${selectedSquares.size}/$numberOfDaysInCurrentMonth",
             getPositionsForWeekDayNames()[6].x,
             initOffset - textVerticalOffsetToBeDrawnInCenter,
             textPaintMonthName
@@ -117,13 +130,13 @@ class DrugCalendarView : View {
         dateForUnselect?.let {
 
             //TODO create separate Paint objects for different typs of drawing
-            circlePaint.color = Color.WHITE
-            canvas.drawCircle(it.x, it.y, initSquareSelectionRadius, circlePaint)
+            emptyCirclePaint.color = Color.WHITE
+            canvas.drawCircle(it.x, it.y, initSquareSelectionRadius, emptyCirclePaint)
         }
 
         for (selected in selectedSquares) {
-            circlePaint.color = Color.GREEN
-            canvas.drawCircle(selected.x, selected.y, initSquareSelectionRadius, circlePaint)
+            emptyCirclePaint.color = Color.GREEN
+            canvas.drawCircle(selected.x, selected.y, initSquareSelectionRadius, emptyCirclePaint)
         }
 
         daysInWeekNames?.let {
@@ -147,6 +160,7 @@ class DrugCalendarView : View {
                 )
             }
         }
+
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -175,15 +189,22 @@ class DrugCalendarView : View {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val x = event.x
         val y = event.y
+
+        val selectedSquare = getSelectedDateSquare(x, y)
+
+
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-
+                selectedSquare?.let {
+                    datePressedNow = it
+                }
+                invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
 
             }
             MotionEvent.ACTION_UP -> {
-                val selectedSquare = getSelectedDateSquare(x, y)
+                datePressedNow = null
                 selectedSquare?.let {
                     dateForUnselect = if (!selectedSquares.add(selectedSquare)) {
                         selectedSquares.remove(selectedSquare)
@@ -194,9 +215,11 @@ class DrugCalendarView : View {
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
-
+                datePressedNow = null
+                invalidate()
             }
         }
+
         return true
     }
 
@@ -249,7 +272,7 @@ class DrugCalendarView : View {
         else
             7 - numFirstDayOfWeek
 
-        val numberOfDaysInCurrentMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+        numberOfDaysInCurrentMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
         val squareList = ArrayList<DateSquare>()
 
