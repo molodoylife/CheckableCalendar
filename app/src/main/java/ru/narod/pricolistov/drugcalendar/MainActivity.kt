@@ -7,10 +7,10 @@ import ru.narod.pricolistov.gridviewexample.PreCachingLayoutManager
 
 
 class MainActivity : AppCompatActivity() {
-    var data = arrayOf("01.03.20", "01.04.20",
-        "01.05.20", "01.06.20", "01.07.20", "01.03.20", "01.04.20",
-        "01.05.20", "01.06.20", "01.07.20", "01.03.20", "01.04.20",
-        "01.05.20", "01.06.20", "01.07.20")
+    var data = arrayOf("01.10.19", "01.11.19",
+        "01.12.19", "01.01.20", "01.02.20", "01.03.20", "01.04.20",
+        "01.05.20", "01.06.20", "01.07.20", "01.08.20", "01.09.20",
+        "01.10.20", "01.11.20", "01.12.20")
 
 
     /** Called when the activity is first created.  */
@@ -21,29 +21,9 @@ class MainActivity : AppCompatActivity() {
 
 
         val layoutManager = PreCachingLayoutManager(this)
-        layoutManager.initialPrefetchItemCount = 5
-        val adapter = MyAdapter(this, data)
-
-        rv.setItemViewCacheSize(20)
-        adapter.setHasStableIds(true)
-
+        val adapter = MyAdapter(data)
 
         rv.layoutManager = layoutManager
         rv.adapter = adapter
-
-
-
-
-
-
-
-
-//        val adapter = MyAdapter(this@MainActivity, data)
-//        val linearLayoutManager = LinearLayoutManager(this@MainActivity)
-//        rv.layoutManager = linearLayoutManager
-//        rv.adapter = adapter
-
-
-        //adjustGrid()
     }
 }

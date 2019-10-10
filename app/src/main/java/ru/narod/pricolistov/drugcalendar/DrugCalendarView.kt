@@ -2,19 +2,12 @@ package ru.narod.pricolistov.drugcalendar
 
 import android.app.Activity
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Point
+import android.graphics.*
 import android.util.AttributeSet
 import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
-import android.widget.GridLayout
-import android.widget.TextView
-import android.widget.Toast
-import java.lang.Math.abs
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
@@ -25,9 +18,11 @@ class DrugCalendarView : View {
 
     private val calendar = Calendar.getInstance()
     private val dateFormat = SimpleDateFormat("dd.MM.yy", Locale.getDefault())
+    private var dateFormatMonthTitle = ""
     private val screenWidth = getCurrentScreenWidth()
     private val squareSize = getSquareSideLength()
     private val initOffset = squareSize / 2
+    private val initSquareSelectionRadius = initOffset * 0.75f
     private var daysInWeekNames: Array<String>? = null
     private val numberOfFirstDayInWeekInCurrentLocale = calendar.firstDayOfWeek
 
@@ -35,29 +30,41 @@ class DrugCalendarView : View {
     private var datePositions: List<DateSquare>? = null
     private var daysInWeekNamesPositions: List<DateSquare>? = null
 
+
+    private var dateForUnselect: DateSquare? = null
+
     private var mWidth = 0
     private var mHeight = 0
 
-    private val selectedSquares: ArrayList<DateSquare> = arrayListOf()
+    private val selectedSquares: MutableSet<DateSquare> = hashSetOf()
 
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val textPaintMonthName = Paint(Paint.ANTI_ALIAS_FLAG)
+    private var textVerticalOffsetToBeDrawnInCenter = 0f
 
     private val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     init {
-
         circlePaint.style = Paint.Style.STROKE
         circlePaint.strokeWidth = 2f
         circlePaint.color = Color.GREEN
-
 
         textPaint.strokeWidth = 3f
         textPaint.color = Color.BLACK
         textPaint.textSize = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
-            30f, resources.displayMetrics
+            16f, resources.displayMetrics
         )
         textPaint.textAlign = Paint.Align.CENTER
+
+
+        textPaintMonthName.strokeWidth = 3f
+        textPaintMonthName.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textPaintMonthName.color = Color.BLACK
+        textPaintMonthName.textAlign = Paint.Align.LEFT
+        textPaintMonthName.textSize = textPaint.textSize
+
+        textVerticalOffsetToBeDrawnInCenter = (textPaint.descent() + textPaint.ascent()) / 2
 
         val formatLetterDay = SimpleDateFormat("EEEEE", Locale.getDefault())
 
@@ -83,42 +90,179 @@ class DrugCalendarView : View {
         }
     }
 
-    constructor(ctx: Context) : super(ctx) {
-        Log.d("", "")
-    }
-
-    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs) {
-        initComputation(attrs)
-    }
-
-    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
-        context,
-        attrs,
-        defStyleAttr
-    ) {
-        initComputation(attrs)
-    }
-
     override fun onDraw(canvas: Canvas) {
 
-        for(selected in selectedSquares){
-            canvas.drawCircle(selected.x, selected.y, 30f, textPaint)
+        textPaintMonthName.textAlign = Paint.Align.LEFT
+        //TODO Optimize onDraw method
+
+        canvas.drawText(
+            dateFormatMonthTitle,
+            initOffset.toFloat() / 2,
+            initOffset - textVerticalOffsetToBeDrawnInCenter,
+            textPaintMonthName
+        )
+
+        textPaintMonthName.textAlign = Paint.Align.CENTER
+
+
+        //TODO Optimize getting x coords for this label
+        canvas.drawText(
+            "14/28",
+            getPositionsForWeekDayNames()[6].x,
+            initOffset - textVerticalOffsetToBeDrawnInCenter,
+            textPaintMonthName
+        )
+
+
+        dateForUnselect?.let {
+
+            //TODO create separate Paint objects for different typs of drawing
+            circlePaint.color = Color.WHITE
+            canvas.drawCircle(it.x, it.y, initSquareSelectionRadius, circlePaint)
+        }
+
+        for (selected in selectedSquares) {
+            circlePaint.color = Color.GREEN
+            canvas.drawCircle(selected.x, selected.y, initSquareSelectionRadius, circlePaint)
         }
 
         daysInWeekNames?.let {
             for (i in 0..7) {
                 canvas.drawText(
                     "${it[(i + numberOfFirstDayInWeekInCurrentLocale) % 7]}",
-                    daysInWeekNamesPositions!![i].x, daysInWeekNamesPositions!![i].y, textPaint
+                    daysInWeekNamesPositions!![i].x,
+                    daysInWeekNamesPositions!![i].y - textVerticalOffsetToBeDrawnInCenter,
+                    textPaint
                 )
             }
         }
 
         datePositions?.let {
             for (date in datePositions!!) {
-                canvas.drawText("${date.date}", date.x, date.y, textPaint)
+                canvas.drawText(
+                    "${date.date}",
+                    date.x,
+                    date.y - textVerticalOffsetToBeDrawnInCenter,
+                    textPaint
+                )
             }
         }
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        mWidth = w
+        mHeight = h
+    }
+
+
+    private fun getCurrentScreenWidth(): Int {
+        val display = (context as Activity).windowManager.defaultDisplay
+        val size = Point()
+        display.getSize(size)
+        return size.x
+    }
+
+    private fun getSquareSideLength(): Int {
+        return screenWidth / 7
+    }
+
+    fun setDate(date: String) {
+        this.date = date
+        datePositions = getPositionsForDates()
+        invalidate()
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val x = event.x
+        val y = event.y
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+
+            }
+            MotionEvent.ACTION_MOVE -> {
+
+            }
+            MotionEvent.ACTION_UP -> {
+                val selectedSquare = getSelectedDateSquare(x, y)
+                selectedSquare?.let {
+                    dateForUnselect = if (!selectedSquares.add(selectedSquare)) {
+                        selectedSquares.remove(selectedSquare)
+                        selectedSquare
+                    } else
+                        null
+                    invalidate()
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+
+            }
+        }
+        return true
+    }
+
+    private fun getSelectedDateSquare(x: Float, y: Float): DateSquare? {
+        for (date in datePositions!!) {
+
+            //TODO adjust radius and create more productive algorithm for finding selected element
+            if (isInArea(x, y, date.x, date.y)) {
+                return DateSquare(date.x, date.y, 0)
+            }
+        }
+
+        return null
+    }
+
+    private fun isInArea(touchX: Float, touchY: Float, centerX: Float, centerY: Float): Boolean {
+        val rect = RectF(
+            centerX - initOffset, centerY - initOffset,
+            centerX + initOffset, centerY + initOffset
+        )
+        return rect.contains(touchX, touchY)
+    }
+
+    private fun getPositionsForWeekDayNames(): List<DateSquare> {
+        val squareList = ArrayList<DateSquare>()
+
+        for (i in 0..7) {
+            val x = (initOffset + i * squareSize).toFloat()
+            val y = (initOffset).toFloat() + squareSize
+            squareList.add(DateSquare(x, y, 0))
+        }
+
+        return squareList
+    }
+
+    private fun getPositionsForDates(): List<DateSquare> {
+
+        calendar.time = dateFormat.parse(date!!)
+
+        dateFormatMonthTitle =
+            SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.time)
+
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        val numFirstDayOfWeek = calendar.firstDayOfWeek
+
+        val dayOfWeekForFirstOfCurrentMonth = calendar.get(Calendar.DAY_OF_WEEK)
+
+        val gapOfFirstDayOfMonth = if (dayOfWeekForFirstOfCurrentMonth >= numFirstDayOfWeek)
+            calendar.get(Calendar.DAY_OF_WEEK) - numFirstDayOfWeek
+        else
+            7 - numFirstDayOfWeek
+
+        val numberOfDaysInCurrentMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+        val squareList = ArrayList<DateSquare>()
+
+        for (i in 0 until numberOfDaysInCurrentMonth) {
+            val x = (initOffset + (gapOfFirstDayOfMonth + i) % 7 * squareSize).toFloat()
+
+            //TODO create vals for values like squareSize * 2 to make code more clear
+            val y =
+                (initOffset + ((i + gapOfFirstDayOfMonth) / 7) * squareSize).toFloat() + squareSize * 2
+            squareList.add(DateSquare(x, y, i + 1))
+        }
+
+        return squareList
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -163,92 +307,20 @@ class DrugCalendarView : View {
         setMeasuredDimension(width, height)
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        mWidth = w
-        mHeight = h
+    constructor(ctx: Context) : super(ctx) {
+        Log.d("", "")
     }
 
-
-    private fun getCurrentScreenWidth(): Int {
-        val display = (context as Activity).windowManager.defaultDisplay
-        val size = Point()
-        display.getSize(size)
-        return size.x
+    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs) {
+        initComputation(attrs)
     }
 
-    private fun getSquareSideLength(): Int {
-        return screenWidth / 7
-    }
-
-    fun setDate(date: String) {
-        this.date = date
-        datePositions = getPositionsForDates()
-        invalidate()
-    }
-
-    private fun getPositionsForWeekDayNames(): List<DateSquare> {
-        val squareList = ArrayList<DateSquare>()
-
-        for (i in 0..7) {
-            val x = (initOffset + i * squareSize).toFloat()
-            val y = (initOffset).toFloat()
-            squareList.add(DateSquare(x, y, 0))
-        }
-
-        return squareList
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        val x = event.x
-        val y = event.y
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-
-            }
-            MotionEvent.ACTION_MOVE -> {
-
-            }
-            MotionEvent.ACTION_UP -> {
-                selectedSquares.add(getSelectedDateSquare(x, y))
-                invalidate()
-            }
-            MotionEvent.ACTION_CANCEL -> {
-
-            }
-        }
-        return true
-    }
-
-    private fun getSelectedDateSquare(x: Float, y: Float): DateSquare{
-        return DateSquare(x, y, 0)
-    }
-
-    private fun getPositionsForDates(): List<DateSquare> {
-
-        calendar.time = dateFormat.parse(date!!)
-
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        val numFirstDayOfWeek = calendar.firstDayOfWeek
-
-        val dayOfWeekForFirstOfCurrentMonth = calendar.get(Calendar.DAY_OF_WEEK)
-
-        val gapOfFirstDayOfMonth = if (dayOfWeekForFirstOfCurrentMonth >= numFirstDayOfWeek)
-            calendar.get(Calendar.DAY_OF_WEEK) - numFirstDayOfWeek
-        else
-            7 - numFirstDayOfWeek
-
-        val numberOfDaysInCurrentMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
-
-        val squareList = ArrayList<DateSquare>()
-
-        for (i in 0 until numberOfDaysInCurrentMonth) {
-            val x = (initOffset + (gapOfFirstDayOfMonth + i) % 7 * squareSize).toFloat()
-            val y =
-                (initOffset + ((i + gapOfFirstDayOfMonth) / 7) * squareSize).toFloat() + squareSize
-            squareList.add(DateSquare(x, y, i+1))
-        }
-
-        return squareList
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(
+        context,
+        attrs,
+        defStyleAttr
+    ) {
+        initComputation(attrs)
     }
 }
 
