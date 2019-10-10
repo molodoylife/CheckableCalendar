@@ -7,7 +7,9 @@ import ru.narod.pricolistov.gridviewexample.PreCachingLayoutManager
 
 
 class MainActivity : AppCompatActivity() {
-    var data = arrayOf("01.10.19", "01.11.19", "01.12.19", "01.01.20", "01.02.20", "01.03.20", "01.04.20",
+    var data = arrayOf("01.03.20", "01.04.20",
+        "01.05.20", "01.06.20", "01.07.20", "01.03.20", "01.04.20",
+        "01.05.20", "01.06.20", "01.07.20", "01.03.20", "01.04.20",
         "01.05.20", "01.06.20", "01.07.20")
 
 

@@ -9,7 +9,12 @@ import android.graphics.Point
 import android.util.AttributeSet
 import android.util.Log
 import android.util.TypedValue
+import android.view.MotionEvent
 import android.view.View
+import android.widget.GridLayout
+import android.widget.TextView
+import android.widget.Toast
+import java.lang.Math.abs
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
@@ -23,9 +28,12 @@ class DrugCalendarView : View {
     private val screenWidth = getCurrentScreenWidth()
     private val squareSize = getSquareSideLength()
     private val initOffset = squareSize / 2
+    private var daysInWeekNames: Array<String>? = null
+    private val numberOfFirstDayInWeekInCurrentLocale = calendar.firstDayOfWeek
 
     private var date: String? = null
     private var datePositions: List<DateSquare>? = null
+    private var daysInWeekNamesPositions: List<DateSquare>? = null
 
     private var mWidth = 0
     private var mHeight = 0
@@ -35,15 +43,22 @@ class DrugCalendarView : View {
     init {
         textPaint.strokeWidth = 3f
         textPaint.color = Color.BLACK
-
         textPaint.textSize = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_SP,
             30f, resources.displayMetrics
         )
-
         textPaint.textAlign = Paint.Align.CENTER
 
-        //calendar.set(Calendar.DAY_OF_WEEK, i + 1)
+        val formatLetterDay = SimpleDateFormat("EEEEE", Locale.getDefault())
+
+        for (i in 1..8) {
+            daysInWeekNames = Array(7) {
+                calendar.set(Calendar.DAY_OF_WEEK, it)
+                formatLetterDay.format(calendar.time)
+            }
+        }
+
+        daysInWeekNamesPositions = getPositionsForWeekDayNames()
     }
 
     private fun initComputation(attr: AttributeSet?) {
@@ -76,9 +91,18 @@ class DrugCalendarView : View {
 
     override fun onDraw(canvas: Canvas) {
 
+        daysInWeekNames?.let {
+            for (i in 0..7) {
+                canvas.drawText(
+                    "${it[(i + numberOfFirstDayInWeekInCurrentLocale) % 7]}",
+                    daysInWeekNamesPositions!![i].x, daysInWeekNamesPositions!![i].y, textPaint
+                )
+            }
+        }
+
         datePositions?.let {
             for ((index, date) in datePositions!!.withIndex()) {
-                canvas.drawText("$index", date.x, date.y, textPaint)
+                canvas.drawText("${index + 1}", date.x, date.y, textPaint)
             }
         }
     }
@@ -145,6 +169,40 @@ class DrugCalendarView : View {
     fun setDate(date: String) {
         this.date = date
         datePositions = getPositionsForDates()
+        invalidate()
+    }
+
+    private fun getPositionsForWeekDayNames(): List<DateSquare> {
+        val squareList = ArrayList<DateSquare>()
+
+        for (i in 0..7) {
+            val x = (initOffset + i * squareSize).toFloat()
+            val y = (initOffset).toFloat()
+            squareList.add(DateSquare(x, y))
+        }
+
+        return squareList
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val x = event.x
+        val y = event.y
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+
+            }
+            MotionEvent.ACTION_MOVE -> {
+
+            }
+            MotionEvent.ACTION_UP -> {
+                Toast.makeText(context, "x=$x y=$y", Toast.LENGTH_SHORT).show()
+
+            }
+            MotionEvent.ACTION_CANCEL -> {
+
+            }
+        }
+        return true
     }
 
     private fun getPositionsForDates(): List<DateSquare> {
@@ -154,15 +212,21 @@ class DrugCalendarView : View {
         calendar.set(Calendar.DAY_OF_MONTH, 1)
         val numFirstDayOfWeek = calendar.firstDayOfWeek
 
-        val gapOfFirstDayOfMonth = (calendar.get(Calendar.DAY_OF_WEEK) - numFirstDayOfWeek)
+        val dayOfWeekForFirstOfCurrentMonth = calendar.get(Calendar.DAY_OF_WEEK)
+
+        val gapOfFirstDayOfMonth = if (dayOfWeekForFirstOfCurrentMonth >= numFirstDayOfWeek)
+            calendar.get(Calendar.DAY_OF_WEEK) - numFirstDayOfWeek
+        else
+            7 - numFirstDayOfWeek
+
         val numberOfDaysInCurrentMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
 
         val squareList = ArrayList<DateSquare>()
 
-        for (i in 0..numberOfDaysInCurrentMonth) {
+        for (i in 0 until numberOfDaysInCurrentMonth) {
             val x = (initOffset + (gapOfFirstDayOfMonth + i) % 7 * squareSize).toFloat()
             val y =
-                (initOffset + ((i + gapOfFirstDayOfMonth) / 7) * squareSize).toFloat() + initOffset
+                (initOffset + ((i + gapOfFirstDayOfMonth) / 7) * squareSize).toFloat() + squareSize
             squareList.add(DateSquare(x, y))
         }
 
