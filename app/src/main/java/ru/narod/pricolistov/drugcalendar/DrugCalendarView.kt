@@ -1,5 +1,8 @@
 package ru.narod.pricolistov.drugcalendar
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Context
 import android.graphics.*
@@ -8,6 +11,10 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.LinearInterpolator
+import android.view.animation.OvershootInterpolator
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
@@ -35,6 +42,13 @@ class DrugCalendarView : View {
     private var dateForUnselect: DateSquare? = null
 
     private var datePressedNow: DateSquare? = null
+    private var radiusRippleEffect = 0f
+
+
+    private var dateForArcAnimation: DateSquare? = null
+    private var arcAngle = 0f
+    private var arcAnimRect: RectF = RectF(0f, 0f, 0f, 0f)
+
 
     private var mWidth = 0
     private var mHeight = 0
@@ -48,9 +62,11 @@ class DrugCalendarView : View {
     private val emptyCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val filledCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
+    private var animator: ValueAnimator? = null
+
     init {
         emptyCirclePaint.style = Paint.Style.STROKE
-        emptyCirclePaint.strokeWidth = 2f
+        emptyCirclePaint.strokeWidth = 4f
         emptyCirclePaint.color = Color.GREEN
 
         filledCirclePaint.style = Paint.Style.FILL_AND_STROKE
@@ -98,14 +114,38 @@ class DrugCalendarView : View {
         }
     }
 
+    private fun startAnimationRipple() {
+        animator?.cancel()
+        animator = ValueAnimator.ofInt(0, initSquareSelectionRadius.toInt()).apply {
+            duration = 50
+            interpolator = LinearInterpolator()
+            addUpdateListener { valueAnimator ->
+                radiusRippleEffect = (valueAnimator.animatedValue as Int).toFloat()
+                invalidate()
+            }
+        }
+        animator?.start()
+    }
+
     //TODO Refactor me
     override fun onDraw(canvas: Canvas) {
+
 
         textPaintMonthName.textAlign = Paint.Align.LEFT
         //TODO Optimize onDraw method
 
         datePressedNow?.let {
-            canvas.drawCircle(it.x, it.y, initSquareSelectionRadius, filledCirclePaint)
+            canvas.drawCircle(it.x, it.y, radiusRippleEffect, filledCirclePaint)
+        }
+
+        date?.let {
+            canvas.drawArc(
+                arcAnimRect,
+                90f,
+                arcAngle,
+                false,
+                emptyCirclePaint
+            )
         }
 
         canvas.drawText(
@@ -186,6 +226,30 @@ class DrugCalendarView : View {
         invalidate()
     }
 
+    private fun startAnimationChecking(selectedDate: DateSquare) {
+        animator?.cancel()
+        arcAnimRect.left = selectedDate.x - initSquareSelectionRadius
+        arcAnimRect.top = selectedDate.y - initSquareSelectionRadius
+        arcAnimRect.right = selectedDate.x + initSquareSelectionRadius
+        arcAnimRect.bottom = selectedDate.y + initSquareSelectionRadius
+        animator = ValueAnimator.ofInt(0, 360).apply {
+            duration = 300
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener { valueAnimator ->
+                arcAngle = (valueAnimator.animatedValue as Int).toFloat()
+                invalidate()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator?) {
+                    dateForArcAnimation = null
+                    arcAngle = 0f
+                    selectedSquares.add(selectedDate)
+                }
+            })
+        }
+        animator?.start()
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val x = event.x
         val y = event.y
@@ -198,7 +262,8 @@ class DrugCalendarView : View {
                 selectedSquare?.let {
                     datePressedNow = it
                 }
-                invalidate()
+
+                startAnimationRipple()
             }
             MotionEvent.ACTION_MOVE -> {
 
@@ -206,12 +271,15 @@ class DrugCalendarView : View {
             MotionEvent.ACTION_UP -> {
                 datePressedNow = null
                 selectedSquare?.let {
-                    dateForUnselect = if (!selectedSquares.add(selectedSquare)) {
+                    dateForUnselect = if (selectedSquares.contains(it)) {
                         selectedSquares.remove(selectedSquare)
-                        selectedSquare
-                    } else
+                        invalidate()
+                        it
+                    } else {
+                        startAnimationChecking(selectedSquare)
                         null
-                    invalidate()
+                    }
+
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
