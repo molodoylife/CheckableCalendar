@@ -6,9 +6,8 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 
 
-class MyAdapter(private val dataList: Array<String>) :
+class MyAdapter(private val dataList: Array<String>, private val data: Array<DateState>) :
     RecyclerView.Adapter<MyAdapter.GridViewHolder>() {
-
 
 
     override fun getItemCount(): Int {
@@ -24,7 +23,7 @@ class MyAdapter(private val dataList: Array<String>) :
 
 
     override fun onBindViewHolder(holder: GridViewHolder, position: Int) {
-        (holder.myItemView as DrugCalendarView).setDate(dataList[position])
+        (holder.myItemView as DrugCalendarView).setDateAndData(dataList[position], data)
     }
 
     inner class GridViewHolder(val myItemView: View) : RecyclerView.ViewHolder(myItemView)

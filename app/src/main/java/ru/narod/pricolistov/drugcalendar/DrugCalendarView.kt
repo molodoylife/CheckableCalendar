@@ -18,9 +18,6 @@ import kotlin.collections.ArrayList
 import kotlin.math.min
 
 
-
-
-
 //TODO refactor me
 class DrugCalendarView : View {
 
@@ -64,6 +61,7 @@ class DrugCalendarView : View {
     private var rippleColor = GRAY
 
     private var date: String? = null
+    private var data: Array<DateState>? = null
 
     private var daysInWeekNamesPositions = getPositionsForWeekDayNames()
     private var datePositions: List<DateSquare>? = null
@@ -201,29 +199,28 @@ class DrugCalendarView : View {
     //TODO Refactor me
     override fun onDraw(canvas: Canvas) {
 
-
         textPaintMonthName.textAlign = Paint.Align.LEFT
         //TODO Optimize onDraw method
 
         datePositions?.let {
             for (date in it) {
 
+                var paintForCircles: Paint
+                if (!date.isActive) {
+                    paintForCircles = shadowCirclePaint
+                } else {
+                    paintForCircles = activeCirclePaint
+                }
+
                 canvas.drawCircle(
-                    date.x+2, date.y + 3,
+                    date.x + 2, date.y + 3,
                     initSquareSelectionRadius - 3, shadowCirclePaint
                 )
 
-
-
-
                 canvas.drawCircle(
                     date.x, date.y,
-                    initSquareSelectionRadius - 3, activeCirclePaint
+                    initSquareSelectionRadius - 3, paintForCircles
                 )
-
-
-
-
 
                 canvas.drawText(
                     "${date.date}",
@@ -296,8 +293,9 @@ class DrugCalendarView : View {
         return screenWidth / 7
     }
 
-    fun setDate(date: String) {
+    fun setDateAndData(date: String, data: Array<DateState>) {
         this.date = date
+        this.data = data
         datePositions = getPositionsForDates()
         invalidate()
     }
@@ -354,7 +352,7 @@ class DrugCalendarView : View {
 
             //TODO adjust radius and create more productive algorithm for finding selected element
             if (isInArea(x, y, date.x, date.y)) {
-                return DateSquare(date.x, date.y, date.date)
+                return if (date.isActive) DateSquare(date.x, date.y, date.date) else null
             }
         }
 
@@ -403,12 +401,31 @@ class DrugCalendarView : View {
         val squareList = ArrayList<DateSquare>()
 
         for (i in 0 until numberOfDaysInCurrentMonth) {
+
+            val isActive = when (data!![i]) {
+                DateState.NORMAL -> true
+                DateState.SELECTED -> true
+                else -> false
+            }
+
+            val isSelected = when (data!![i]) {
+                DateState.NORMAL -> false
+                DateState.SELECTED -> true
+                else -> false
+            }
+
+
             val x = (initOffset + (gapOfFirstDayOfMonth + i) % 7 * squareSize).toFloat()
 
             //TODO create vals for values like squareSize * 2 to make code more clear
             val y =
                 (initOffset + ((i + gapOfFirstDayOfMonth) / 7) * squareSize).toFloat() + squareSize * 2
-            squareList.add(DateSquare(x, y, i + 1))
+            val dateForAdding = DateSquare(x, y, i + 1, isActive = isActive, isSelected = isSelected)
+            squareList.add(dateForAdding)
+
+            if(isSelected){
+                selectedSquares.add(dateForAdding)
+            }
         }
 
         return squareList
