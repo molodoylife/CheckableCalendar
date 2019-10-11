@@ -5,7 +5,8 @@
     android:layout_height="wrap_content"
 
     app:rippleColor="#80cfcfcf"
-    app:selectedColor="#00574B"
+    app:selectedColor="#76d275"
+    app:selectedRippleColor="#8076d275"
     app:selectionRadiusMultiplier="0.8"
     app:textColor="#000"
     app:textSize="16sp" />

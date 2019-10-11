@@ -12,12 +12,13 @@ import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
-import androidx.core.graphics.alpha
-import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.math.min
+
+
+
 
 
 //TODO refactor me
@@ -36,6 +37,7 @@ class DrugCalendarView : View {
 
         val ALIGN_CENTER = Paint.Align.CENTER
         val ALIGN_LEFT = Paint.Align.LEFT
+        val SHADOW_COLOR = Color.parseColor("#e0e0e0")
 
         const val WEEK_NAME_FORMAT = "EEEEE"
         const val RECEIVED_MONTH_DEFAULT = "dd.MM.yy"
@@ -58,6 +60,7 @@ class DrugCalendarView : View {
 
 
     private var selectionColor = GREEN
+    private var selectedRippleColor = GREEN
     private var rippleColor = GRAY
 
     private var date: String? = null
@@ -67,12 +70,6 @@ class DrugCalendarView : View {
 
     private var datePressedNow: DateSquare? = null
     private var radiusRippleEffect = 0f
-
-
-    private var dateForArcAnimation: DateSquare? = null
-    private var arcAngle = 0f
-    private var arcAnimRect: RectF = RectF(0f, 0f, 0f, 0f)
-
 
     private var mWidth = 0
     private var mHeight = 0
@@ -105,6 +102,12 @@ class DrugCalendarView : View {
         style = Paint.Style.STROKE
         strokeWidth = CIRCLE_STROKE_WIDTH
         color = GREEN
+    }
+
+    private val shadowCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL_AND_STROKE
+        strokeWidth = CIRCLE_STROKE_WIDTH
+        color = SHADOW_COLOR
     }
 
     private val activeCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -144,6 +147,8 @@ class DrugCalendarView : View {
                 typedArray.getColor(R.styleable.DrugCalendarView_textColor, BLACK)
 
             selectionColor = typedArray.getColor(R.styleable.DrugCalendarView_selectedColor, GREEN)
+            selectedRippleColor =
+                typedArray.getColor(R.styleable.DrugCalendarView_selectedRippleColor, GREEN)
             rippleColor = typedArray.getColor(R.styleable.DrugCalendarView_rippleColor, GRAY)
 
             emptyCirclePaint.color = selectionColor
@@ -158,8 +163,7 @@ class DrugCalendarView : View {
 
     private fun startAnimationRipple(isElementSelected: Boolean) {
         animator?.cancel()
-        val selectedColorWithAlpha = selectionColor
-        filledCirclePaint.color = if (isElementSelected) selectedColorWithAlpha else rippleColor
+        filledCirclePaint.color = if (isElementSelected) selectedRippleColor else rippleColor
         animator = ValueAnimator.ofInt(0, initSquareSelectionRadius.toInt()).apply {
             duration = 240
             interpolator = DecelerateInterpolator()
@@ -185,37 +189,13 @@ class DrugCalendarView : View {
     private fun addOrRemoveDateWithAnimation() {
         datePressedNow?.let {
             if (!selectedSquares.contains(it)) {
-                startAnimationChecking(it)
+                selectedSquares.add(it)
             } else {
                 selectedSquares.remove(it)
-                datePressedNow = null
-                invalidate()
             }
+            datePressedNow = null
+            invalidate()
         }
-    }
-
-    private fun startAnimationChecking(selectedDate: DateSquare) {
-        animator?.cancel()
-        arcAnimRect.left = selectedDate.x - initSquareSelectionRadius
-        arcAnimRect.top = selectedDate.y - initSquareSelectionRadius
-        arcAnimRect.right = selectedDate.x + initSquareSelectionRadius
-        arcAnimRect.bottom = selectedDate.y + initSquareSelectionRadius
-        animator = ValueAnimator.ofInt(0, 360).apply {
-            duration = 300
-            interpolator = FastOutSlowInInterpolator()
-            addUpdateListener { valueAnimator ->
-                arcAngle = (valueAnimator.animatedValue as Int).toFloat()
-                invalidate()
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator?) {
-                    dateForArcAnimation = null
-                    arcAngle = 0f
-                    selectedSquares.add(selectedDate)
-                }
-            })
-        }
-        animator?.start()
     }
 
     //TODO Refactor me
@@ -225,19 +205,32 @@ class DrugCalendarView : View {
         textPaintMonthName.textAlign = Paint.Align.LEFT
         //TODO Optimize onDraw method
 
+        datePositions?.let {
+            for (date in it) {
+
+                canvas.drawCircle(
+                    date.x+2, date.y + 3,
+                    initSquareSelectionRadius - 3, shadowCirclePaint
+                )
+
+                canvas.drawCircle(
+                    date.x, date.y,
+                    initSquareSelectionRadius - 3, activeCirclePaint
+                )
+
+                canvas.drawText(
+                    "${date.date}",
+                    date.x,
+                    date.y - textVerticalOffsetToBeDrawnInCenter,
+                    textPaint
+                )
+            }
+        }
+
         datePressedNow?.let {
             canvas.drawCircle(it.x, it.y, radiusRippleEffect, filledCirclePaint)
         }
 
-        date?.let {
-            canvas.drawArc(
-                arcAnimRect,
-                90f,
-                arcAngle,
-                false,
-                emptyCirclePaint
-            )
-        }
 
         canvas.drawText(
             dateFormatMonthTitle,
@@ -271,42 +264,12 @@ class DrugCalendarView : View {
                 )
             }
         }
-
-        datePositions?.let {
-            for (date in it) {
-
-                var ifThisDateAnimatingNow = false
-
-                datePressedNow?.let {
-                    if (it.x == date.x && it.y == date.y) {
-                        ifThisDateAnimatingNow = true
-                    }
-                }
-
-
-                if (!ifThisDateAnimatingNow) {
-                    canvas.drawCircle(
-                        date.x, date.y,
-                        initSquareSelectionRadius - 3, activeCirclePaint
-                    )
-                }
-
-
-                canvas.drawText(
-                    "${date.date}",
-                    date.x,
-                    date.y - textVerticalOffsetToBeDrawnInCenter,
-                    textPaint
-                )
-            }
-        }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         mWidth = w
         mHeight = h
     }
-
 
     private fun getCurrentScreenWidth(): Int {
         val display = (context as Activity).windowManager.defaultDisplay
