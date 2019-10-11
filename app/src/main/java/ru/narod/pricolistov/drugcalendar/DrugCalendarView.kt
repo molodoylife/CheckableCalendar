@@ -12,6 +12,7 @@ import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.DecelerateInterpolator
+import androidx.core.graphics.alpha
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import java.text.SimpleDateFormat
 import java.util.*
@@ -25,6 +26,7 @@ class DrugCalendarView : View {
     companion object {
         const val GRAY = Color.GRAY
         const val GREEN = Color.GREEN
+        const val WHITE = Color.WHITE
         const val BLACK = Color.BLACK
 
         const val CIRCLE_STROKE_WIDTH = 4f
@@ -46,13 +48,17 @@ class DrugCalendarView : View {
     private val screenWidth = getCurrentScreenWidth()
     private val squareSize = getSquareSideLength()
     private val initOffset = squareSize / 2
-    private val initSquareSelectionRadius = initOffset * 0.75f
+    private var initSquareSelectionRadius = 10f
+    private var initSquareSelectionRadiusMulitplier = 0.75f
     private var daysInWeekNames: Array<String>? = null
     private val numberOfFirstDayInWeekInCurrentLocale = calendar.firstDayOfWeek
 
     private var stillCanSelectThisDate = false
     private var ifFingerTouches = false
 
+
+    private var selectionColor = GREEN
+    private var rippleColor = GRAY
 
     private var date: String? = null
 
@@ -70,7 +76,6 @@ class DrugCalendarView : View {
 
     private var mWidth = 0
     private var mHeight = 0
-    private var selectionColor = Color.BLUE
 
     private val selectedSquares: MutableSet<DateSquare> = hashSetOf()
 
@@ -99,8 +104,15 @@ class DrugCalendarView : View {
     private val emptyCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = CIRCLE_STROKE_WIDTH
-        color = selectionColor
+        color = GREEN
     }
+
+    private val activeCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL_AND_STROKE
+        strokeWidth = CIRCLE_STROKE_WIDTH
+        color = WHITE
+    }
+
     private val filledCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL_AND_STROKE
         strokeWidth = CIRCLE_STROKE_WIDTH
@@ -128,16 +140,26 @@ class DrugCalendarView : View {
                 R.styleable.DrugCalendarView
             )
             textPaint.textSize = typedArray.getDimension(R.styleable.DrugCalendarView_textSize, 16f)
-            selectionColor =
-                typedArray.getColor(R.styleable.DrugCalendarView_selectedColor, Color.BLACK)
-            Log.d("", "")
+            textPaint.color =
+                typedArray.getColor(R.styleable.DrugCalendarView_textColor, BLACK)
+
+            selectionColor = typedArray.getColor(R.styleable.DrugCalendarView_selectedColor, GREEN)
+            rippleColor = typedArray.getColor(R.styleable.DrugCalendarView_rippleColor, GRAY)
+
+            emptyCirclePaint.color = selectionColor
+            filledCirclePaint.color = rippleColor
+            initSquareSelectionRadiusMulitplier =
+                typedArray.getFloat(R.styleable.DrugCalendarView_selectionRadiusMultiplier, 0.75f)
+            initSquareSelectionRadius = initOffset * initSquareSelectionRadiusMulitplier
+
             typedArray.recycle()
         }
     }
 
     private fun startAnimationRipple(isElementSelected: Boolean) {
         animator?.cancel()
-        filledCirclePaint.color = if (isElementSelected) selectionColor else GRAY
+        val selectedColorWithAlpha = selectionColor
+        filledCirclePaint.color = if (isElementSelected) selectedColorWithAlpha else rippleColor
         animator = ValueAnimator.ofInt(0, initSquareSelectionRadius.toInt()).apply {
             duration = 240
             interpolator = DecelerateInterpolator()
@@ -166,6 +188,7 @@ class DrugCalendarView : View {
                 startAnimationChecking(it)
             } else {
                 selectedSquares.remove(it)
+                datePressedNow = null
                 invalidate()
             }
         }
@@ -250,7 +273,25 @@ class DrugCalendarView : View {
         }
 
         datePositions?.let {
-            for (date in datePositions!!) {
+            for (date in it) {
+
+                var ifThisDateAnimatingNow = false
+
+                datePressedNow?.let {
+                    if (it.x == date.x && it.y == date.y) {
+                        ifThisDateAnimatingNow = true
+                    }
+                }
+
+
+                if (!ifThisDateAnimatingNow) {
+                    canvas.drawCircle(
+                        date.x, date.y,
+                        initSquareSelectionRadius - 3, activeCirclePaint
+                    )
+                }
+
+
                 canvas.drawText(
                     "${date.date}",
                     date.x,

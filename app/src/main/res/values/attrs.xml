@@ -3,5 +3,8 @@
     <declare-styleable name="DrugCalendarView">
         <attr name="textSize" format="dimension" />
         <attr name="selectedColor" format="color"/>
+        <attr name="textColor" format="color"/>
+        <attr name="rippleColor" format="color"/>
+        <attr name="selectionRadiusMultiplier" format="float"/>
     </declare-styleable>
 </resources>
