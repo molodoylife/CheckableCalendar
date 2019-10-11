@@ -2,5 +2,6 @@
 <resources>
     <declare-styleable name="DrugCalendarView">
         <attr name="textSize" format="dimension" />
+        <attr name="selectedColor" format="color"/>
     </declare-styleable>
 </resources>

@@ -11,8 +11,8 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
-import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.LinearInterpolator
+import android.view.animation.DecelerateInterpolator
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
@@ -50,15 +50,14 @@ class DrugCalendarView : View {
     private var daysInWeekNames: Array<String>? = null
     private val numberOfFirstDayInWeekInCurrentLocale = calendar.firstDayOfWeek
 
+    private var stillCanSelectThisDate = false
+    private var ifFingerTouches = false
 
 
     private var date: String? = null
 
     private var daysInWeekNamesPositions = getPositionsForWeekDayNames()
     private var datePositions: List<DateSquare>? = null
-
-
-    private var dateForUnselect: DateSquare? = null
 
     private var datePressedNow: DateSquare? = null
     private var radiusRippleEffect = 0f
@@ -71,6 +70,7 @@ class DrugCalendarView : View {
 
     private var mWidth = 0
     private var mHeight = 0
+    private var selectionColor = Color.BLUE
 
     private val selectedSquares: MutableSet<DateSquare> = hashSetOf()
 
@@ -99,7 +99,7 @@ class DrugCalendarView : View {
     private val emptyCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = CIRCLE_STROKE_WIDTH
-        color = GREEN
+        color = selectionColor
     }
     private val filledCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL_AND_STROKE
@@ -125,22 +125,72 @@ class DrugCalendarView : View {
         attr?.let {
             val typedArray = context.obtainStyledAttributes(
                 attr,
-                R.styleable.DrugCalendarView,
-                0, 0
+                R.styleable.DrugCalendarView
             )
-            textPaint.textSize = typedArray.getDimension(0, 16f)
+            textPaint.textSize = typedArray.getDimension(R.styleable.DrugCalendarView_textSize, 16f)
+            selectionColor =
+                typedArray.getColor(R.styleable.DrugCalendarView_selectedColor, Color.BLACK)
+            Log.d("", "")
+            typedArray.recycle()
         }
     }
 
-    private fun startAnimationRipple() {
+    private fun startAnimationRipple(isElementSelected: Boolean) {
         animator?.cancel()
+        filledCirclePaint.color = if (isElementSelected) selectionColor else GRAY
         animator = ValueAnimator.ofInt(0, initSquareSelectionRadius.toInt()).apply {
-            duration = 50
-            interpolator = LinearInterpolator()
+            duration = 240
+            interpolator = DecelerateInterpolator()
             addUpdateListener { valueAnimator ->
                 radiusRippleEffect = (valueAnimator.animatedValue as Int).toFloat()
                 invalidate()
             }
+
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator?) {
+                    if (!ifFingerTouches) {
+                        radiusRippleEffect = 0f
+                        if (stillCanSelectThisDate) {
+                            addOrRemoveDateWithAnimation()
+                        }
+                    }
+                }
+            })
+        }
+        animator?.start()
+    }
+
+    private fun addOrRemoveDateWithAnimation() {
+        datePressedNow?.let {
+            if (!selectedSquares.contains(it)) {
+                startAnimationChecking(it)
+            } else {
+                selectedSquares.remove(it)
+                invalidate()
+            }
+        }
+    }
+
+    private fun startAnimationChecking(selectedDate: DateSquare) {
+        animator?.cancel()
+        arcAnimRect.left = selectedDate.x - initSquareSelectionRadius
+        arcAnimRect.top = selectedDate.y - initSquareSelectionRadius
+        arcAnimRect.right = selectedDate.x + initSquareSelectionRadius
+        arcAnimRect.bottom = selectedDate.y + initSquareSelectionRadius
+        animator = ValueAnimator.ofInt(0, 360).apply {
+            duration = 300
+            interpolator = FastOutSlowInInterpolator()
+            addUpdateListener { valueAnimator ->
+                arcAngle = (valueAnimator.animatedValue as Int).toFloat()
+                invalidate()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator?) {
+                    dateForArcAnimation = null
+                    arcAngle = 0f
+                    selectedSquares.add(selectedDate)
+                }
+            })
         }
         animator?.start()
     }
@@ -185,7 +235,6 @@ class DrugCalendarView : View {
         )
 
         for (selected in selectedSquares) {
-            emptyCirclePaint.color = Color.GREEN
             canvas.drawCircle(selected.x, selected.y, initSquareSelectionRadius, emptyCirclePaint)
         }
 
@@ -210,7 +259,6 @@ class DrugCalendarView : View {
                 )
             }
         }
-
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -236,68 +284,50 @@ class DrugCalendarView : View {
         invalidate()
     }
 
-    private fun startAnimationChecking(selectedDate: DateSquare) {
-        animator?.cancel()
-        arcAnimRect.left = selectedDate.x - initSquareSelectionRadius
-        arcAnimRect.top = selectedDate.y - initSquareSelectionRadius
-        arcAnimRect.right = selectedDate.x + initSquareSelectionRadius
-        arcAnimRect.bottom = selectedDate.y + initSquareSelectionRadius
-        animator = ValueAnimator.ofInt(0, 360).apply {
-            duration = 300
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { valueAnimator ->
-                arcAngle = (valueAnimator.animatedValue as Int).toFloat()
-                invalidate()
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator?) {
-                    dateForArcAnimation = null
-                    arcAngle = 0f
-                    selectedSquares.add(selectedDate)
-                }
-            })
-        }
-        animator?.start()
-    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val x = event.x
-        val y = event.y
-
-        val selectedSquare = getSelectedDateSquare(x, y)
 
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                val selectedSquare = getSelectedDateSquare(event.x, event.y)
                 selectedSquare?.let {
+                    ifFingerTouches = true
                     datePressedNow = it
+                    startAnimationRipple(selectedSquares.contains(selectedSquare))
                 }
-
-                startAnimationRipple()
             }
             MotionEvent.ACTION_MOVE -> {
-
+                datePressedNow?.let { pressedItem ->
+                    if (!isInArea(event.x, event.y, pressedItem.x, pressedItem.y)) {
+                        datePressedNow = null
+                        ifFingerTouches = false
+                        invalidate()
+                        return false
+                    }
+                }
             }
             MotionEvent.ACTION_UP -> {
-                datePressedNow = null
-                selectedSquare?.let {
-                    dateForUnselect = if (selectedSquares.contains(it)) {
-                        selectedSquares.remove(selectedSquare)
-                        invalidate()
-                        it
-                    } else {
-                        startAnimationChecking(selectedSquare)
-                        null
-                    }
+                ifFingerTouches = false
 
+                datePressedNow?.let { pressedItem ->
+                    if (isInArea(event.x, event.y, pressedItem.x, pressedItem.y)) {
+                        stillCanSelectThisDate = true
+                        if (radiusRippleEffect + 1 >= initSquareSelectionRadius) {
+                            radiusRippleEffect = 0f
+                            addOrRemoveDateWithAnimation()
+                        }
+                    }
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
+                ifFingerTouches = false
+                radiusRippleEffect = 0f
                 datePressedNow = null
+                stillCanSelectThisDate = false
                 invalidate()
             }
         }
-
         return true
     }
 
