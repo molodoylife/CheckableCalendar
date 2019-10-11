@@ -213,10 +213,17 @@ class DrugCalendarView : View {
                     initSquareSelectionRadius - 3, shadowCirclePaint
                 )
 
+
+
+
                 canvas.drawCircle(
                     date.x, date.y,
                     initSquareSelectionRadius - 3, activeCirclePaint
                 )
+
+
+
+
 
                 canvas.drawText(
                     "${date.date}",
@@ -229,6 +236,13 @@ class DrugCalendarView : View {
 
         datePressedNow?.let {
             canvas.drawCircle(it.x, it.y, radiusRippleEffect, filledCirclePaint)
+
+            canvas.drawText(
+                "${it.date}",
+                it.x,
+                it.y - textVerticalOffsetToBeDrawnInCenter,
+                textPaint
+            )
         }
 
 
@@ -340,7 +354,7 @@ class DrugCalendarView : View {
 
             //TODO adjust radius and create more productive algorithm for finding selected element
             if (isInArea(x, y, date.x, date.y)) {
-                return DateSquare(date.x, date.y, 0)
+                return DateSquare(date.x, date.y, date.date)
             }
         }
 
