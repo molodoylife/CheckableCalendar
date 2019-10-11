@@ -12,19 +12,35 @@ import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.AccelerateInterpolator
 import android.view.animation.LinearInterpolator
-import android.view.animation.OvershootInterpolator
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.math.min
 
 
+//TODO refactor me
 class DrugCalendarView : View {
 
+    companion object {
+        const val GRAY = Color.GRAY
+        const val GREEN = Color.GREEN
+        const val BLACK = Color.BLACK
+
+        const val CIRCLE_STROKE_WIDTH = 4f
+        const val TEXT_STROKE_WIDTH = 3f
+        const val TEXT_SIZE_DEFAULT = 16f
+
+
+        val ALIGN_CENTER = Paint.Align.CENTER
+        val ALIGN_LEFT = Paint.Align.LEFT
+
+        const val WEEK_NAME_FORMAT = "EEEEE"
+        const val RECEIVED_MONTH_DEFAULT = "dd.MM.yy"
+    }
+
     private val calendar = Calendar.getInstance()
-    private val dateFormat = SimpleDateFormat("dd.MM.yy", Locale.getDefault())
+    private val dateFormat = SimpleDateFormat(RECEIVED_MONTH_DEFAULT, Locale.getDefault())
     private var numberOfDaysInCurrentMonth = 0
     private var dateFormatMonthTitle = ""
     private val screenWidth = getCurrentScreenWidth()
@@ -34,9 +50,12 @@ class DrugCalendarView : View {
     private var daysInWeekNames: Array<String>? = null
     private val numberOfFirstDayInWeekInCurrentLocale = calendar.firstDayOfWeek
 
+
+
     private var date: String? = null
+
+    private var daysInWeekNamesPositions = getPositionsForWeekDayNames()
     private var datePositions: List<DateSquare>? = null
-    private var daysInWeekNamesPositions: List<DateSquare>? = null
 
 
     private var dateForUnselect: DateSquare? = null
@@ -55,51 +74,50 @@ class DrugCalendarView : View {
 
     private val selectedSquares: MutableSet<DateSquare> = hashSetOf()
 
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val textPaintMonthName = Paint(Paint.ANTI_ALIAS_FLAG)
-    private var textVerticalOffsetToBeDrawnInCenter = 0f
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        strokeWidth = TEXT_STROKE_WIDTH
+        color = BLACK
+        textSize = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_SP,
+            TEXT_SIZE_DEFAULT, resources.displayMetrics
+        )
+        textAlign = ALIGN_CENTER
+    }
 
-    private val emptyCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val filledCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val textVerticalOffsetToBeDrawnInCenter = (textPaint.descent() + textPaint.ascent()) / 2
+
+    private val yPositionForTextWithOffset = initOffset - textVerticalOffsetToBeDrawnInCenter
+
+    private val textPaintMonthName = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        strokeWidth = TEXT_STROKE_WIDTH
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        color = BLACK
+        textAlign = ALIGN_LEFT
+        textSize = textPaint.textSize
+    }
+
+    private val emptyCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = CIRCLE_STROKE_WIDTH
+        color = GREEN
+    }
+    private val filledCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL_AND_STROKE
+        strokeWidth = CIRCLE_STROKE_WIDTH
+        color = GRAY
+    }
+
 
     private var animator: ValueAnimator? = null
 
     init {
-        emptyCirclePaint.style = Paint.Style.STROKE
-        emptyCirclePaint.strokeWidth = 4f
-        emptyCirclePaint.color = Color.GREEN
-
-        filledCirclePaint.style = Paint.Style.FILL_AND_STROKE
-        filledCirclePaint.strokeWidth = 2f
-        filledCirclePaint.color = Color.GRAY
-
-        textPaint.strokeWidth = 3f
-        textPaint.color = Color.BLACK
-        textPaint.textSize = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_SP,
-            16f, resources.displayMetrics
-        )
-        textPaint.textAlign = Paint.Align.CENTER
-
-
-        textPaintMonthName.strokeWidth = 3f
-        textPaintMonthName.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        textPaintMonthName.color = Color.BLACK
-        textPaintMonthName.textAlign = Paint.Align.LEFT
-        textPaintMonthName.textSize = textPaint.textSize
-
-        textVerticalOffsetToBeDrawnInCenter = (textPaint.descent() + textPaint.ascent()) / 2
-
-        val formatLetterDay = SimpleDateFormat("EEEEE", Locale.getDefault())
-
+        val formatLetterDay = SimpleDateFormat(WEEK_NAME_FORMAT, Locale.getDefault())
         for (i in 1..8) {
             daysInWeekNames = Array(7) {
                 calendar.set(Calendar.DAY_OF_WEEK, it)
                 formatLetterDay.format(calendar.time)
             }
         }
-
-        daysInWeekNamesPositions = getPositionsForWeekDayNames()
     }
 
     private fun initComputation(attr: AttributeSet?) {
@@ -151,28 +169,20 @@ class DrugCalendarView : View {
         canvas.drawText(
             dateFormatMonthTitle,
             initOffset.toFloat() / 2,
-            initOffset - textVerticalOffsetToBeDrawnInCenter,
+            yPositionForTextWithOffset,
             textPaintMonthName
         )
 
-        textPaintMonthName.textAlign = Paint.Align.CENTER
+        textPaintMonthName.textAlign = ALIGN_CENTER
 
 
         //TODO Optimize getting x coords for this label
         canvas.drawText(
             "${selectedSquares.size}/$numberOfDaysInCurrentMonth",
             getPositionsForWeekDayNames()[6].x,
-            initOffset - textVerticalOffsetToBeDrawnInCenter,
+            yPositionForTextWithOffset,
             textPaintMonthName
         )
-
-
-        dateForUnselect?.let {
-
-            //TODO create separate Paint objects for different typs of drawing
-            emptyCirclePaint.color = Color.WHITE
-            canvas.drawCircle(it.x, it.y, initSquareSelectionRadius, emptyCirclePaint)
-        }
 
         for (selected in selectedSquares) {
             emptyCirclePaint.color = Color.GREEN
