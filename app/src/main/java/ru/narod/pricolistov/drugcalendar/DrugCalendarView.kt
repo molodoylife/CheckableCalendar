@@ -175,7 +175,7 @@ class DrugCalendarView : View {
                     if (!ifFingerTouches) {
                         radiusRippleEffect = 0f
                         if (stillCanSelectThisDate) {
-                            addOrRemoveDateWithAnimation()
+                            addOrRemoveDate()
                         }
                     }
                 }
@@ -184,7 +184,7 @@ class DrugCalendarView : View {
         animator?.start()
     }
 
-    private fun addOrRemoveDateWithAnimation() {
+    private fun addOrRemoveDate() {
         datePressedNow?.let {
             if (!selectedSquares.contains(it)) {
                 selectedSquares.add(it)
@@ -331,7 +331,7 @@ class DrugCalendarView : View {
                         stillCanSelectThisDate = true
                         if (radiusRippleEffect + 1 >= initSquareSelectionRadius) {
                             radiusRippleEffect = 0f
-                            addOrRemoveDateWithAnimation()
+                            addOrRemoveDate()
                         }
                     }
                 }
@@ -352,7 +352,7 @@ class DrugCalendarView : View {
 
             //TODO adjust radius and create more productive algorithm for finding selected element
             if (isInArea(x, y, date.x, date.y)) {
-                return if (date.isActive) DateSquare(date.x, date.y, date.date) else null
+                return if (date.isActive) DateSquare(date.x, date.y, date.date, date.isActive, date.isSelected) else null
             }
         }
 
