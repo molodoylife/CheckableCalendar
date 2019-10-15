@@ -1,4 +1,4 @@
-package ru.narod.pricolistov.gridviewexample
+package ru.narod.pricolistov.drugcalendar
 
 import android.content.Context
 import androidx.recyclerview.widget.LinearLayoutManager
