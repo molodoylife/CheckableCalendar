@@ -3,12 +3,12 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginStart="30dp"
-    android:layout_marginEnd="30dp"
+    android:layout_marginStart="40dp"
+    android:layout_marginEnd="40dp"
 
     app:rippleColor="#80cfcfcf"
     app:selectedColor="#76d275"
     app:selectedRippleColor="#8076d275"
-    app:selectionRadiusMultiplier="0.8"
+    app:selectionRadiusMultiplier="0.77"
     app:textColor="#000"
     app:textSize="16sp" />

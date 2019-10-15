@@ -1,5 +1,6 @@
 package ru.narod.pricolistov.drugcalendar
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -7,7 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 
 
 class MyAdapter(private val dateList: Array<String>, private val data: List<Array<DateState>>) :
-    RecyclerView.Adapter<MyAdapter.GridViewHolder>() {
+    RecyclerView.Adapter<MyAdapter.GridViewHolder>(), DrugCalendarView.OnElementSelectedListener {
 
 
     override fun getItemCount(): Int {
@@ -24,6 +25,7 @@ class MyAdapter(private val dateList: Array<String>, private val data: List<Arra
 
     override fun onBindViewHolder(holder: GridViewHolder, position: Int) {
         (holder.myItemView as DrugCalendarView).setDateAndData(dateList[position], data[position])
+        (holder.myItemView as DrugCalendarView).onElementSelectListener = this
     }
 
     override fun getItemId(position: Int): Long {
@@ -31,4 +33,8 @@ class MyAdapter(private val dateList: Array<String>, private val data: List<Arra
     }
 
     inner class GridViewHolder(val myItemView: View) : RecyclerView.ViewHolder(myItemView)
+
+    override fun onElementSelect(isElementSelected: Boolean, date: String) {
+        Log.d("TAG","isSelected=$isElementSelected date=$date")
+    }
 }
