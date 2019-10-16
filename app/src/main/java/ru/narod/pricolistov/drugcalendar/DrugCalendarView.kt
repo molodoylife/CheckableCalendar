@@ -313,7 +313,7 @@ class DrugCalendarView : View {
         textPaintMonthName.textAlign = ALIGN_CENTER
 
         canvas.drawText(
-            "${selectedDates.size}/$numberOfDaysInCurrentMonth",
+            "${selectedDates.size}/${datePositionsWithData?.filter { it.isActive }?.size}",
             (mWidth - initOffset).toFloat(),
             yPositionForTextWithOffset,
             textPaintMonthName
