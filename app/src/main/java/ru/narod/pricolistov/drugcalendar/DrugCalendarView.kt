@@ -2,6 +2,7 @@ package ru.narod.pricolistov.drugcalendar
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.animation.TimeInterpolator
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Context
@@ -157,7 +158,7 @@ class DrugCalendarView : View {
      * Developer is responsible for call [setDateAndData] to set date and data
      * */
     private var date: String? = null
-    private var data: Array<DateState>? = null
+    private var data: List<DateState>? = null
 
     /**
      * Storing coordinates for names of days in week
@@ -360,7 +361,7 @@ class DrugCalendarView : View {
     }
 
 
-    fun setDateAndData(date: String, data: Array<DateState>) {
+    fun setDateAndData(date: String, data: List<DateState>) {
         clearData()
         this.date = date
         this.data = data
@@ -495,19 +496,23 @@ class DrugCalendarView : View {
             for (i in 0 until numberOfDaysInCurrentMonth) {
 
                 var isActive = true
-                var isSelected = true
+                var isSelected = false
 
                 data?.let { dataArray ->
-                    isActive = when (dataArray[i]) {
-                        DateState.NORMAL -> true
-                        DateState.SELECTED -> true
-                        else -> false
-                    }
+                    val nextDate = data.takeIf { (dataArray.size-1) >= i }
 
-                    isSelected = when (dataArray[i]) {
-                        DateState.NORMAL -> false
-                        DateState.SELECTED -> true
-                        else -> false
+                    nextDate?.let {
+                        isActive = when (it[i]) {
+                            DateState.NORMAL -> true
+                            DateState.SELECTED -> true
+                            else -> false
+                        }
+
+                        isSelected = when (it[i]) {
+                            DateState.NORMAL -> false
+                            DateState.SELECTED -> true
+                            else -> false
+                        }
                     }
                 }
 

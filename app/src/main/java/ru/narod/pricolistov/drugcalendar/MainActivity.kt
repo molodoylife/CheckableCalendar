@@ -1,31 +1,24 @@
 package ru.narod.pricolistov.drugcalendar
 
 import android.os.Bundle
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.android.synthetic.main.activity_main.*
 import java.util.*
-import androidx.recyclerview.widget.DividerItemDecoration
 
 
+class MainActivity : AppCompatActivity(), CalendarLayout.CalendarObserver {
 
-
-enum class DateState {
-    INACTIVE, NORMAL, SELECTED
-}
-
-class MainActivity : AppCompatActivity() {
-    val date = arrayOf(
-        "01.10.19", "01.11.19",
-        "01.12.19", "01.01.20", "01.02.20", "01.03.20", "01.04.20",
-        "01.05.20", "01.06.20", "01.07.20", "01.08.20", "01.09.20",
-        "01.10.20", "01.11.20", "01.12.20"
+    private val date = arrayOf(
+        "01.10.19", "02.10.19",
+        "03.10.19", "04.10.19", "05.10.19", "06.10.19", "07.10.19",
+        "08.10.19", "09.10.19", "10.10.19", "11.10.19", "12.10.19",
+        "13.10.19", "14.10.19", "15.10.19", "16.10.19"
     )
 
-    val data = arrayListOf<Array<DateState>>()
+    private val data = hashMapOf<String, DateState>()
 
     //val date = arrayOf("01.10.19")
-
-
 
 
     /** Called when the activity is first created.  */
@@ -33,34 +26,29 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-
-        val layoutManager = PreCachingLayoutManager(this)
-
-        for(i in 0..date.size){
-            val dataArray = Array(31) {
-                val r = Random()
-                when (r.nextInt(3)) {
-                    0 -> DateState.INACTIVE
-                    1 -> DateState.NORMAL
-                    2 -> DateState.SELECTED
-                    else -> DateState.NORMAL
-                }
+        for (element in date) {
+            val r = Random()
+            val state = when (r.nextInt(3)) {
+                0 -> DateState.INACTIVE
+                1 -> DateState.NORMAL
+                2 -> DateState.SELECTED
+                else -> DateState.NORMAL
             }
-            data.add(dataArray)
+            data[element] = state
         }
 
+        cv.setData(data, this)
+    }
 
-        val adapter = MyAdapter(date, data)
-        adapter.setHasStableIds(true)
+    override fun onElementSelect(isElementSelected: Boolean, date: String) {
+        Log.d("TAG", "Selected $isElementSelected , date $date")
+    }
 
-        rv.layoutManager = layoutManager
-        rv.setItemViewCacheSize(100)
+    override fun onScrolledEnd(date: String) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
 
-        val dividerItemDecoration = DividerItemDecoration(
-            rv.context,
-            layoutManager.orientation
-        )
-        rv.addItemDecoration(dividerItemDecoration)
-        rv.adapter = adapter
+    override fun onScrolledStart(date: String) {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }
