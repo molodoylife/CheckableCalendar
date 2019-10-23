@@ -2,38 +2,54 @@ package ru.narod.pricolistov.drugcalendar
 
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DividerItemDecoration
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.collections.ArrayList
 
-class CalendarLayout : RecyclerView {
+//TODO FIX SET DATA METHOD!
+class CalendarLayout : RecyclerView, OnBottomReachedListener {
+
     private val locale = Locale.getDefault()
     private var myAdapter: MyAdapter? = null
     private val calendar = Calendar.getInstance()
     private val dateFormat = SimpleDateFormat(DrugCalendarView.RECEIVED_MONTH_DEFAULT, locale)
     private var mCalendarObserver: CalendarObserver? = null
+    private val initMonthes = arrayListOf<String>(dateFormat.format(calendar.time))
 
     private fun init() {
 
         calendar.set(Calendar.DAY_OF_MONTH, 1)
 
-        val firstMonth =
-            SimpleDateFormat(DrugCalendarView.RECEIVED_MONTH_DEFAULT, locale).format(calendar.time)
+        addNewMonths(5)
 
-        myAdapter = MyAdapter(
-            arrayOf(firstMonth),
-            arrayListOf(arrayListOf(DateState.NORMAL))
-        )
+        myAdapter = MyAdapter(initMonthes)
         val myLayoutManager = PreCachingLayoutManager(context)
 
         myAdapter?.setHasStableIds(true)
 
         layoutManager = myLayoutManager
-        setItemViewCacheSize(100)
+
+        addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+
+                val visibleItemCount = myLayoutManager.childCount
+                val totalItemCount = myLayoutManager.itemCount
+                val pastVisibleItems = myLayoutManager.findFirstVisibleItemPosition()
+                if (pastVisibleItems + visibleItemCount >= totalItemCount) {
+                    addNewMonths(5)
+                    myAdapter?.notifyDataSetChanged()
+                    onBottomReached(initMonthes.size - 1)
+                }
+            }
+        })
 
         val dividerItemDecoration = DividerItemDecoration(
             context,
@@ -43,9 +59,20 @@ class CalendarLayout : RecyclerView {
         adapter = myAdapter
     }
 
+    private fun addNewMonths(count: Int) {
+        for (i in 1..count) {
+            calendar.add(Calendar.MONTH, 1)
+            initMonthes.add(dateFormat.format(calendar.time))
+        }
+    }
 
+    //TODO FIX ME!!!
 
-
+    /**
+     *  Just fix me and all will be okay. According to my logic you need to convert received
+     *  map to understandable data for [DrugCalendarView] It's [DrugCalendarView.setDateAndData]
+     *  method needs "date: String, data: List<DateState>?" as params. You can do it for example in this method.
+     * */
     fun setData(data: Map<String, DateState>, calendarObserver: CalendarObserver) {
         mCalendarObserver = calendarObserver
         val dateList = hashSetOf<String>()
@@ -55,11 +82,13 @@ class CalendarLayout : RecyclerView {
         var currYear = 0
         var currMonth = -1
 
-        for (dataItem in data){
+        for (dataItem in data) {
             val date = dataItem.key
             calendar.time = dateFormat.parse(date)
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+            val dateToAdd = dateFormat.format(calendar.time)
             if (calendar.get(Calendar.YEAR) !== currYear || calendar.get(Calendar.MONTH) !== currMonth) {
-                dateList.add(date)
+                dateList.add(dateToAdd)
                 stateList = arrayListOf()
                 dataList.add(stateList)
                 currYear = calendar.get(Calendar.YEAR)
@@ -69,7 +98,7 @@ class CalendarLayout : RecyclerView {
             stateList.add(dataItem.value)
         }
 
-        myAdapter!!.setData(dateList.toList(), dataList)
+        myAdapter!!.setData(dataList)
     }
 
     interface CalendarObserver {
@@ -97,23 +126,27 @@ class CalendarLayout : RecyclerView {
     }
 
     inner class MyAdapter(
-        private var dateList: Array<String>,
-        private var data: List<List<DateState>>
+        private var dateList: ArrayList<String>
     ) :
         RecyclerView.Adapter<MyAdapter.GridViewHolder>(),
         DrugCalendarView.OnElementSelectedListener {
 
-        fun setData(dates: List<String>, dataList: List<List<DateState>>){
-            dateList = dates.toTypedArray()
-            data = dataList
+        var mData: List<List<DateState>>? = null
+
+        fun addDates() {
+            val lastPosition = dateList.size - 1
+            //dateList.addAll(newPortion)
             notifyDataSetChanged()
         }
 
+        fun setData(dataList: List<List<DateState>>) {
+            mData = dataList
+            notifyDataSetChanged()
+        }
 
         override fun getItemCount(): Int {
             return if (!dateList.isNullOrEmpty()) dateList.size else 0
         }
-
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GridViewHolder {
             val itemView = LayoutInflater.from(parent.context).inflate(R.layout.item, parent, false)
@@ -123,11 +156,13 @@ class CalendarLayout : RecyclerView {
 
 
         override fun onBindViewHolder(holder: GridViewHolder, position: Int) {
+
+            val dataForBind = if (!mData.isNullOrEmpty()) mData!![position] else null
             (holder.myItemView as DrugCalendarView).setDateAndData(
                 dateList[position],
-                data[position]
+                dataForBind
             )
-            (holder.myItemView as DrugCalendarView).onElementSelectListener = this
+            //(holder.myItemView).onElementSelectListener = this
         }
 
         override fun getItemId(position: Int): Long {
@@ -140,9 +175,19 @@ class CalendarLayout : RecyclerView {
             mCalendarObserver?.onElementSelect(isElementSelected, date)
         }
     }
+
+    override fun onBottomReached(pos: Int) {
+        Log.d("TAG", "On bottom reached! position $pos")
+        addNewMonths(5)
+        myAdapter?.addDates()
+    }
 }
 
 enum class DateState {
     INACTIVE, NORMAL, SELECTED
+}
+
+interface OnBottomReachedListener {
+    fun onBottomReached(pos: Int)
 }
 

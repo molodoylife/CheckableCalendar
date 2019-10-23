@@ -361,17 +361,18 @@ class DrugCalendarView : View {
     }
 
 
-    fun setDateAndData(date: String, data: List<DateState>) {
+    fun setDateAndData(date: String, data: List<DateState>?) {
         clearData()
         this.date = date
         this.data = data
+        applyDependentSizes()
     }
 
     private fun clearData() {
         selectedDates.clear()
-        this.date = null
         this.data = null
-        datePositionsWithData = null
+        this.date = null
+        this.datePositionsWithData = null
     }
 
 
@@ -430,16 +431,18 @@ class DrugCalendarView : View {
     }
 
     private fun getSelectedDateSquare(x: Float, y: Float): DateSquare? {
-        for (date in datePositionsWithData!!) {
+        datePositionsWithData?.let {
+            for (date in it) {
 
-            //TODO adjust radius and create more productive algorithm for finding selected element
-            if (isInArea(x, y, date.position.x, date.position.y)) {
-                return if (date.isActive) DateSquare(
-                    date.position,
-                    date.date,
-                    date.isActive,
-                    date.isSelected
-                ) else null
+                //TODO adjust radius and create more productive algorithm for finding selected element
+                if (isInArea(x, y, date.position.x, date.position.y)) {
+                    return if (date.isActive) DateSquare(
+                        date.position,
+                        date.date,
+                        date.isActive,
+                        date.isSelected
+                    ) else null
+                }
             }
         }
 
@@ -467,7 +470,7 @@ class DrugCalendarView : View {
     }
 
     private fun getPositionsForDates(): List<DateSquare> {
-        if (date.isNullOrEmpty() || data.isNullOrEmpty()) {
+        if (date.isNullOrEmpty()) {
             throw Exception("You must specify the date by calling setDateAndData() method!")
         }
 
@@ -499,7 +502,7 @@ class DrugCalendarView : View {
                 var isSelected = false
 
                 data?.let { dataArray ->
-                    val nextDate = data.takeIf { (dataArray.size-1) >= i }
+                    val nextDate = data.takeIf { (dataArray.size - 1) >= i }
 
                     nextDate?.let {
                         isActive = when (it[i]) {
